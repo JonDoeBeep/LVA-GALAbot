@@ -29,7 +29,7 @@ void Robot::AutonomousPeriodic() {
 }
 
 void Robot::TeleopInit() {
-    m_drivetrain.Stop();
+    m_drivetrain.Stop(); // in the name of all
 }
 
 void Robot::TeleopPeriodic() {
