@@ -7,6 +7,7 @@ void Robot::RobotPeriodic() {
     m_Netman.Periodic();
     
     frc::SmartDashboard::PutBoolean("Network/Connected", m_Netman.IsConnected());
+    frc::SmartDashboard::PutNumber("Network/QueueSize", m_Netman.GetQueueSize());
 }
 
 void Robot::AutonomousInit() {
