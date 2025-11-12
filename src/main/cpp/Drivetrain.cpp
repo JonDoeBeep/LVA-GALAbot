@@ -16,7 +16,7 @@ Drivetrain::Drivetrain()
 {    
     SparkMaxConfig baseConfig;
     baseConfig.SetIdleMode(SparkBaseConfig::IdleMode::kBrake);
-    baseConfig.SmartCurrentLimit(100);
+    baseConfig.SmartCurrentLimit(40);
 
 
     constexpr auto kReset   = SparkBase::ResetMode::kNoResetSafeParameters;
