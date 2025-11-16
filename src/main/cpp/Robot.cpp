@@ -16,13 +16,10 @@ void Robot::AutonomousInit() {
 }
 
 void Robot::AutonomousPeriodic() {
-    if (m_Netman.IsConnected()) {
-        auto cmd = m_Netman.GetCommand();
-        if (cmd.has_value()) {
-            m_drivetrain.DriveFromVelocity(cmd->vx, cmd->omega);
-            frc::SmartDashboard::PutNumber("Network/CmdVx", cmd->vx.value());
-            frc::SmartDashboard::PutNumber("Network/CmdW", cmd->omega.value());
-        }
+    if (auto cmd = m_Netman.GetCommand()) {
+        m_drivetrain.DriveFromVelocity(cmd->vx, cmd->omega);
+        frc::SmartDashboard::PutNumber("Network/CmdVx", cmd->vx.value());
+        frc::SmartDashboard::PutNumber("Network/CmdW",  cmd->omega.value());
     } else {
         // when connection lost stop in the name of law
         m_drivetrain.Stop();
@@ -30,7 +27,7 @@ void Robot::AutonomousPeriodic() {
 }
 
 void Robot::TeleopInit() {
-    m_drivetrain.Stop(); // in the name of all
+    m_drivetrain.Stop(); // in the name of the law
 }
 
 void Robot::TeleopPeriodic() {

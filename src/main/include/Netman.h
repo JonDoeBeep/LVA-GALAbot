@@ -5,9 +5,9 @@
 #include <optional>
 #include <vector>
 #include <queue>
+#include <cstdint>
 #include "Constants.h"
 
-// udp class
 class Netman {
 public:
     // hold command pkt
@@ -18,6 +18,7 @@ public:
     };
 
     Netman();
+    ~Netman();
     
     // check new
     void Periodic();
@@ -42,5 +43,11 @@ private:
     units::second_t m_commandStartTime{0_s};
     
     // process received and extract
-    void ProcessPacket(const uint8_t* data, size_t length);
+    // ret false on parse error
+    bool ProcessPacket(const uint8_t* data, size_t length);
+    
+    // stats
+    uint32_t m_packetsReceived{0};
+    uint32_t m_parseErrors{0};
+    uint32_t m_queueOverflows{0};
 };
