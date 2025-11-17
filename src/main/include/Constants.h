@@ -22,10 +22,10 @@ namespace DriveConstants {
     
     // cl vel PID consts
     // need to be tuned for robot!
-    constexpr double kP = 0.0001;        // prop gain
+    constexpr double kP = 0.1;        // prop gain
     constexpr double kI = 0.0;           // integ gain
     constexpr double kD = 0.0;           // d/dx gain
-    constexpr double kFF = 0.000156;     // feedforward (1/max_rpm)
+    constexpr double kFF = 1.0 / kMaxSpeed.value();     // feedforward (1/max_rpm)
     
     // enc conv factors
     // for brushed motors with built-in encs
