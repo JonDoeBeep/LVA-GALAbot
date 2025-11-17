@@ -30,7 +30,7 @@ namespace DriveConstants {
     // enc conv factors
     // for brushed motors with built-in encs
     // adjust based on gearing and wheel diameter (todo)
-    constexpr double kWheelDiameterMeters = 0.1524_m;  // 6 inches
+    constexpr double kWheelDiameterMeters = 0.1524;  // 6 inches
     constexpr double kGearRatio = 10.71;              // adj for gearbox
     constexpr double kEncoderCPR = 42.0;             // counts per revolution
     
