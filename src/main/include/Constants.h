@@ -49,26 +49,3 @@ namespace DriveConstants {
 namespace OIConstants {
     constexpr int kDriverControllerPort = 0;
 }
-
-namespace NetworkConstants {
-    // udp port - WARNING: UDP is ass. will be replaced with spi
-    // packet loss and out-of-order delivery can occur
-    constexpr int kUdpPort = 5808;
-    
-    // con timeout
-    constexpr auto kCommandTimeout = 0.2_s;
-    
-    // protocol conts - BCNP v1.1.0 (semantic versioning)
-    // Breaking changes: all fields now big-endian
-    constexpr uint8_t kProtocolMajor = 1;
-    constexpr uint8_t kProtocolMinor = 1;
-    constexpr uint8_t kProtocolPatch = 0;
-    constexpr size_t kMaxPacketSize = 1024;
-    constexpr size_t kHeaderSize = 4;
-    constexpr size_t kCommandSize = 10;
-    constexpr size_t kMaxCommandsPerPacket = 100;
-    constexpr size_t kMaxQueueSize = 200; // prevent DOS
-    
-    // flag bits
-    constexpr uint8_t kFlagClearQueue = 0x01;
-}

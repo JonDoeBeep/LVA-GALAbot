@@ -1,11 +1,12 @@
 #pragma once
 
-#include <netinet/in.h>
 #include <units/time.h>
 #include <optional>
 #include <vector>
 #include <queue>
 #include <cstdint>
+#include <frc/SPI.h>
+#include "bcnp/controller.h"
 #include "Constants.h"
 
 class Netman {
@@ -27,27 +28,11 @@ public:
     
     bool IsConnected();
     
-    size_t GetQueueSize() const { return m_commandQueue.size(); }
+    size_t GetQueueSize() const { return m_controller.Queue().Size(); }
     
     void ClearQueue();
 
 private:
-    int m_udpSock{-1};
-    sockaddr_in m_udpAddr{};
-    
-    Command m_currentCommand;
-    units::second_t m_lastRxTime{0_s};
-    
-    // command queue for batch
-    std::queue<Command> m_commandQueue;
-    units::second_t m_commandStartTime{0_s};
-    
-    // process received and extract
-    // ret false on parse error
-    bool ProcessPacket(const uint8_t* data, size_t length);
-    
-    // stats
-    uint32_t m_packetsReceived{0};
-    uint32_t m_parseErrors{0};
-    uint32_t m_queueOverflows{0};
+    frc::SPI m_spi;
+    bcnp::Controller m_controller;
 };

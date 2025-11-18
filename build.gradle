@@ -60,9 +60,11 @@ model {
                 source {
                     srcDir 'src/main/cpp'
                     include '**/*.cpp', '**/*.cc'
+                    srcDir 'libraries/BCNP/src'
                 }
                 exportedHeaders {
                     srcDir 'src/main/include'
+                    srcDir 'libraries/BCNP/src'
                 }
             }
 
