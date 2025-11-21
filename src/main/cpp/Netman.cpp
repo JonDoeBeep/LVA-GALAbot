@@ -15,8 +15,9 @@ static bcnp::ControllerConfig MakeControllerConfig() {
     
     // Configure queue timeouts
     config.queue.connectionTimeout = std::chrono::milliseconds(200);
-    config.queue.maxCommandLag = std::chrono::milliseconds(100);
-    config.queue.maxQueueDepth = bcnp::kMaxQueueSize;
+    config.queue.maxCommandLag = std::chrono::milliseconds(5000); // Allow 5s lag for batched commands
+    config.queue.capacity = bcnp::kMaxCommandsPerPacket; // Allow full packet of commands
+    config.parserBufferSize = bcnp::kMaxPacketSize; // Buffer large enough for max packet
     
     return config;
 }
