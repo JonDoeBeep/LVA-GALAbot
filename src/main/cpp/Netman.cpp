@@ -4,9 +4,7 @@
 #include <iostream>
 #include <chrono>
 
-Netman::Netman() 
-{
-    // Configure BCNP Controller
+static bcnp::ControllerConfig MakeControllerConfig() {
     bcnp::ControllerConfig config;
     config.limits.vxMax = DriveConstants::kMaxSpeed.value();
     config.limits.vxMin = -DriveConstants::kMaxSpeed.value();
@@ -20,8 +18,12 @@ Netman::Netman()
     config.queue.maxCommandLag = std::chrono::milliseconds(100);
     config.queue.maxQueueDepth = bcnp::kMaxQueueSize;
     
-    m_controller = bcnp::Controller(config);
-    
+    return config;
+}
+
+Netman::Netman() 
+    : m_controller(MakeControllerConfig())
+{
     // Create TCP adapter in server mode (listen for incoming connections)
     m_tcpAdapter = std::make_unique<bcnp::TcpPosixAdapter>(kTcpPort);
     
@@ -67,7 +69,7 @@ std::optional<Netman::Command> Netman::GetCommand() {
         Netman::Command cmd;
         cmd.vx = units::meters_per_second_t{bcnpCmd->vx};
         cmd.omega = units::radians_per_second_t{bcnpCmd->omega};
-        cmd.duration = units::millisecond_t{bcnpCmd->durationMs};
+        cmd.duration = units::millisecond_t{static_cast<double>(bcnpCmd->durationMs)};
         return cmd;
     }
     return std::nullopt;
