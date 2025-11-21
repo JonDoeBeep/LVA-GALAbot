@@ -5,8 +5,10 @@
 #include <vector>
 #include <queue>
 #include <cstdint>
-#include <frc/SPI.h>
+#include <memory>
 #include "bcnp/controller.h"
+#include "bcnp/transport/tcp_posix.h"
+#include "bcnp/transport/controller_driver.h"
 #include "Constants.h"
 
 class Netman {
@@ -33,6 +35,9 @@ public:
     void ClearQueue();
 
 private:
-    frc::SPI m_spi;
+    static constexpr uint16_t kTcpPort = 5800; // BCNP TCP port
+    
     bcnp::Controller m_controller;
+    std::unique_ptr<bcnp::TcpPosixAdapter> m_tcpAdapter;
+    std::unique_ptr<bcnp::ControllerDriver> m_driver;
 };

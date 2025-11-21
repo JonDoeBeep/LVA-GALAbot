@@ -5,45 +5,63 @@
 #include <chrono>
 
 Netman::Netman() 
-    : m_spi(frc::SPI::Port::kOnboardCS0)
 {
-    // Configure SPI
-    m_spi.SetClockRate(1000000); // 1 MHz
-    m_spi.SetMode(frc::SPI::Mode::kMode0);
-    m_spi.SetChipSelectActiveLow();
-
     // Configure BCNP Controller
     bcnp::ControllerConfig config;
     config.limits.vxMax = DriveConstants::kMaxSpeed.value();
     config.limits.vxMin = -DriveConstants::kMaxSpeed.value();
     config.limits.omegaMax = DriveConstants::kMaxAngularSpeed.value();
     config.limits.omegaMin = -DriveConstants::kMaxAngularSpeed.value();
+    config.limits.durationMin = 0;
+    config.limits.durationMax = 65535; // Max uint16_t
+    
+    // Configure queue timeouts
+    config.queue.connectionTimeout = std::chrono::milliseconds(200);
+    config.queue.maxCommandLag = std::chrono::milliseconds(100);
+    config.queue.maxQueueDepth = bcnp::kMaxQueueSize;
     
     m_controller = bcnp::Controller(config);
+    
+    // Create TCP adapter in server mode (listen for incoming connections)
+    m_tcpAdapter = std::make_unique<bcnp::TcpPosixAdapter>(kTcpPort);
+    
+    // Create controller driver to connect adapter to controller
+    m_driver = std::make_unique<bcnp::ControllerDriver>(m_controller, *m_tcpAdapter);
 }
 
 Netman::~Netman() {
 }
 
 void Netman::Periodic() {
-    // Read from SPI
-    uint8_t buffer[1024];
-    int bytesRead = m_spi.Read(true, buffer, sizeof(buffer));
+    // Poll driver to receive data from TCP adapter and feed to controller
+    m_driver->PollOnce();
     
-    if (bytesRead > 0) {
-        m_controller.PushBytes(buffer, bytesRead);
-    }
+    // Update controller state with current time
+    auto now = std::chrono::steady_clock::now();
+    m_controller.Queue().Update(now);
 
     // Update stats
-    auto& metrics = m_controller.Queue().Metrics();
+    auto metrics = m_controller.Queue().GetMetrics();
     frc::SmartDashboard::PutNumber("Network/PacketsRx", static_cast<double>(metrics.packetsReceived));
     frc::SmartDashboard::PutNumber("Network/ParseErrors", static_cast<double>(metrics.parseErrors));
     frc::SmartDashboard::PutNumber("Network/QueueOverflows", static_cast<double>(metrics.queueOverflows));
+    frc::SmartDashboard::PutBoolean("Network/Connected", IsConnected());
+    frc::SmartDashboard::PutNumber("Network/QueueSize", static_cast<double>(GetQueueSize()));
+    
+    // Update current command info
+    auto cmd = GetCommand();
+    if (cmd) {
+        frc::SmartDashboard::PutNumber("Network/CmdVx", cmd->vx.value());
+        frc::SmartDashboard::PutNumber("Network/CmdW", cmd->omega.value());
+    } else {
+        frc::SmartDashboard::PutNumber("Network/CmdVx", 0.0);
+        frc::SmartDashboard::PutNumber("Network/CmdW", 0.0);
+    }
 }
 
 std::optional<Netman::Command> Netman::GetCommand() {
-    auto now = std::chrono::steady_clock::now();
-    auto bcnpCmd = m_controller.CurrentCommand(now);
+    // Get active command from queue
+    auto bcnpCmd = m_controller.Queue().ActiveCommand();
     
     if (bcnpCmd) {
         Netman::Command cmd;
@@ -56,7 +74,8 @@ std::optional<Netman::Command> Netman::GetCommand() {
 }
 
 bool Netman::IsConnected() {
-    return m_controller.IsConnected(std::chrono::steady_clock::now());
+    auto now = std::chrono::steady_clock::now();
+    return m_controller.Queue().IsConnected(now) && m_tcpAdapter->IsConnected();
 }
 
 void Netman::ClearQueue() {
