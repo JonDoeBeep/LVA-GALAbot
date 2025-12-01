@@ -3,6 +3,8 @@
 #include <frc/smartdashboard/SmartDashboard.h>
 #include <iostream>
 #include <chrono>
+#include <sstream>
+#include <iomanip>
 
 static bcnp::ControllerConfig MakeControllerConfig() {
     bcnp::ControllerConfig config;
@@ -16,7 +18,7 @@ static bcnp::ControllerConfig MakeControllerConfig() {
     // Configure queue timeouts
     config.queue.connectionTimeout = std::chrono::milliseconds(200);
     config.queue.maxCommandLag = std::chrono::milliseconds(5000); // Allow 5s lag for batched commands
-    config.queue.capacity = bcnp::kMaxCommandsPerPacket; // Allow full packet of commands
+    config.queue.capacity = bcnp::kMaxMessagesPerPacket; // Allow full packet of commands
     config.parserBufferSize = bcnp::kMaxPacketSize; // Buffer large enough for max packet
     
     return config;
@@ -50,6 +52,11 @@ void Netman::Periodic() {
     frc::SmartDashboard::PutNumber("Network/QueueOverflows", static_cast<double>(metrics.queueOverflows));
     frc::SmartDashboard::PutBoolean("Network/Connected", IsConnected());
     frc::SmartDashboard::PutNumber("Network/QueueSize", static_cast<double>(GetQueueSize()));
+    
+    // Publish schema hash for diagnostics
+    std::ostringstream hashStr;
+    hashStr << "0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(8) << bcnp::kSchemaHash;
+    frc::SmartDashboard::PutString("Network/SchemaHash", hashStr.str());
     
     // Update current command info
     auto cmd = GetCommand();
