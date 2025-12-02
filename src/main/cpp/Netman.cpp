@@ -17,7 +17,7 @@ static bcnp::MessageQueueConfig MakeQueueConfig() {
 
 static bcnp::DispatcherConfig MakeDispatcherConfig() {
     bcnp::DispatcherConfig config;
-    config.parserBufferSize = 4096;
+    config.parserBufferSize = 256 * 4096;
     config.connectionTimeout = std::chrono::milliseconds(200);
     return config;
 }
@@ -28,6 +28,11 @@ Netman::Netman()
 {
     // Register DriveCmd handler to push commands into queue
     m_dispatcher.RegisterHandler<bcnp::DriveCmd>([this](const bcnp::PacketView& pkt) {
+        // Check clear queue flag FIRST - critical for STOP commands
+        if (pkt.header.flags & bcnp::kFlagClearQueue) {
+            m_driveQueue.Clear();
+        }
+        
         for (auto it = pkt.begin_as<bcnp::DriveCmd>(); it != pkt.end_as<bcnp::DriveCmd>(); ++it) {
             // Clamp velocities to robot limits
             bcnp::DriveCmd cmd = *it;
