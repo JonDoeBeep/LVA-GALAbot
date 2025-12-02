@@ -1,0 +1,4 @@
+[submodule "libraries/BCNP"]
+	path = libraries/BCNP
+	url = https://github.com/JonDoeBeep/BCNP.git
+	branch = v3.x-beta

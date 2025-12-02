@@ -6,49 +6,64 @@
 #include <sstream>
 #include <iomanip>
 
-static bcnp::ControllerConfig MakeControllerConfig() {
-    bcnp::ControllerConfig config;
-    config.limits.vxMax = DriveConstants::kMaxSpeed.value();
-    config.limits.vxMin = -DriveConstants::kMaxSpeed.value();
-    config.limits.omegaMax = DriveConstants::kMaxAngularSpeed.value();
-    config.limits.omegaMin = -DriveConstants::kMaxAngularSpeed.value();
-    config.limits.durationMin = 0;
-    config.limits.durationMax = 65535; // Max uint16_t
-    
+static bcnp::MessageQueueConfig MakeQueueConfig() {
+    bcnp::MessageQueueConfig config;
     // Configure queue timeouts
-    config.queue.connectionTimeout = std::chrono::milliseconds(200);
-    config.queue.maxCommandLag = std::chrono::milliseconds(5000); // Allow 5s lag for batched commands
-    config.queue.capacity = bcnp::kMaxMessagesPerPacket; // Allow full packet of commands
-    config.parserBufferSize = bcnp::kMaxPacketSize; // Buffer large enough for max packet
-    
+    config.connectionTimeout = std::chrono::milliseconds(200);
+    config.maxCommandLag = std::chrono::milliseconds(5000); // Allow 5s lag for batched commands
+    config.capacity = bcnp::kMaxMessagesPerPacket; // Allow full packet of commands
+    return config;
+}
+
+static bcnp::DispatcherConfig MakeDispatcherConfig() {
+    bcnp::DispatcherConfig config;
+    config.parserBufferSize = 4096;
+    config.connectionTimeout = std::chrono::milliseconds(200);
     return config;
 }
 
 Netman::Netman() 
-    : m_controller(MakeControllerConfig())
+    : m_driveQueue(MakeQueueConfig()),
+      m_dispatcher(MakeDispatcherConfig())
 {
+    // Register DriveCmd handler to push commands into queue
+    m_dispatcher.RegisterHandler<bcnp::DriveCmd>([this](const bcnp::PacketView& pkt) {
+        for (auto it = pkt.begin_as<bcnp::DriveCmd>(); it != pkt.end_as<bcnp::DriveCmd>(); ++it) {
+            // Clamp velocities to robot limits
+            bcnp::DriveCmd cmd = *it;
+            cmd.vx = std::clamp(cmd.vx, 
+                -static_cast<float>(DriveConstants::kMaxSpeed.value()), 
+                static_cast<float>(DriveConstants::kMaxSpeed.value()));
+            cmd.omega = std::clamp(cmd.omega, 
+                -static_cast<float>(DriveConstants::kMaxAngularSpeed.value()), 
+                static_cast<float>(DriveConstants::kMaxAngularSpeed.value()));
+            m_driveQueue.Push(cmd);
+        }
+        m_driveQueue.NotifyReceived(bcnp::MessageQueue<bcnp::DriveCmd>::Clock::now());
+    });
+    
     // Create TCP adapter in server mode (listen for incoming connections)
     m_tcpAdapter = std::make_unique<bcnp::TcpPosixAdapter>(kTcpPort);
     
-    // Create controller driver to connect adapter to controller
-    m_driver = std::make_unique<bcnp::ControllerDriver>(m_controller, *m_tcpAdapter);
+    // Create dispatcher driver to connect adapter to dispatcher
+    m_driver = std::make_unique<bcnp::DispatcherDriver>(m_dispatcher, *m_tcpAdapter);
 }
 
 Netman::~Netman() {
 }
 
 void Netman::Periodic() {
-    // Poll driver to receive data from TCP adapter and feed to controller
+    // Poll driver to receive data from TCP adapter and feed to dispatcher
     m_driver->PollOnce();
     
-    // Update controller state with current time
+    // Update queue state with current time
     auto now = std::chrono::steady_clock::now();
-    m_controller.Queue().Update(now);
+    m_driveQueue.Update(now);
 
     // Update stats
-    auto metrics = m_controller.Queue().GetMetrics();
-    frc::SmartDashboard::PutNumber("Network/PacketsRx", static_cast<double>(metrics.packetsReceived));
-    frc::SmartDashboard::PutNumber("Network/ParseErrors", static_cast<double>(metrics.parseErrors));
+    auto metrics = m_driveQueue.GetMetrics();
+    frc::SmartDashboard::PutNumber("Network/MessagesRx", static_cast<double>(metrics.messagesReceived));
+    frc::SmartDashboard::PutNumber("Network/ParseErrors", static_cast<double>(m_dispatcher.ParseErrorCount()));
     frc::SmartDashboard::PutNumber("Network/QueueOverflows", static_cast<double>(metrics.queueOverflows));
     frc::SmartDashboard::PutBoolean("Network/Connected", IsConnected());
     frc::SmartDashboard::PutNumber("Network/QueueSize", static_cast<double>(GetQueueSize()));
@@ -71,7 +86,7 @@ void Netman::Periodic() {
 
 std::optional<Netman::Command> Netman::GetCommand() {
     // Get active command from queue
-    auto bcnpCmd = m_controller.Queue().ActiveCommand();
+    auto bcnpCmd = m_driveQueue.ActiveMessage();
     
     if (bcnpCmd) {
         Netman::Command cmd;
@@ -85,9 +100,9 @@ std::optional<Netman::Command> Netman::GetCommand() {
 
 bool Netman::IsConnected() {
     auto now = std::chrono::steady_clock::now();
-    return m_controller.Queue().IsConnected(now) && m_tcpAdapter->IsConnected();
+    return m_driveQueue.IsConnected(now) && m_tcpAdapter->IsConnected();
 }
 
 void Netman::ClearQueue() {
-    m_controller.Queue().Clear();
+    m_driveQueue.Clear();
 }

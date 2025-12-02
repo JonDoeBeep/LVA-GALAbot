@@ -4,6 +4,34 @@ plugins {
     id "edu.wpi.first.GradleRIO" version "2025.3.2"
 }
 
+// BCNP Configuration
+def bcnpDir = "${projectDir}/libraries/BCNP"
+def bcnpSchemaFile = "${projectDir}/src/main/include/messages.json"  // Your custom schema
+def bcnpGeneratedDir = "${buildDir}/generated/bcnp"
+def bcnpCodegenScript = "${bcnpDir}/schema/bcnp_codegen.py"
+
+// Task to generate BCNP message types from schema
+task bcnpCodegen(type: Exec) {
+    description = 'Generate BCNP message types from JSON schema'
+    
+    inputs.file bcnpSchemaFile
+    inputs.file bcnpCodegenScript
+    outputs.dir bcnpGeneratedDir
+    
+    doFirst {
+        mkdir bcnpGeneratedDir
+    }
+    
+    commandLine 'python', bcnpCodegenScript, bcnpSchemaFile, '--cpp', bcnpGeneratedDir
+    
+    // Use python3 on Linux/macOS
+    doFirst {
+        if (!org.gradle.internal.os.OperatingSystem.current().isWindows()) {
+            commandLine 'python3', bcnpCodegenScript, bcnpSchemaFile, '--cpp', bcnpGeneratedDir
+        }
+    }
+}
+
 // Define my targets (RoboRIO) and artifacts (deployable files)
 // This is added by GradleRIO's backing project DeployUtils.
 deploy {
@@ -60,16 +88,27 @@ model {
                 source {
                     srcDir 'src/main/cpp'
                     include '**/*.cpp', '**/*.cc'
+                    // BCNP library sources
                     srcDir 'libraries/BCNP/src'
                 }
                 exportedHeaders {
                     srcDir 'src/main/include'
+                    // BCNP library headers
                     srcDir 'libraries/BCNP/src'
+                    // BCNP generated headers
+                    srcDir "${bcnpGeneratedDir}"
                 }
             }
 
             binaries.all {
-                cppCompiler.args "-I${projectDir}/libraries/BCNP/generated"
+                // Ensure codegen runs before compilation
+                tasks.withType(CppCompile) {
+                    dependsOn bcnpCodegen
+                }
+                
+                // Include paths
+                cppCompiler.args "-I${projectDir}/libraries/BCNP/src"
+                cppCompiler.args "-I${bcnpGeneratedDir}"
             }
 
             // Set deploy task to deploy this component
@@ -93,6 +132,13 @@ model {
                 source {
                     srcDir 'src/test/cpp'
                     include '**/*.cpp'
+                }
+            }
+
+            binaries.all {
+                // Ensure codegen runs before test compilation too
+                tasks.withType(CppCompile) {
+                    dependsOn bcnpCodegen
                 }
             }
 
