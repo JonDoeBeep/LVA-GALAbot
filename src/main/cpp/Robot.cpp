@@ -3,7 +3,18 @@
 #include <cmath>
 
 void Robot::RobotPeriodic() {
-    // check for new pkts no matter what
+    // Update drivetrain encoder readings
+    m_drivetrain.Periodic();
+    
+    // Record drivetrain telemetry for BCNP transmission
+    m_Netman.RecordTelemetry(
+        m_drivetrain.GetLeftVelocity(),
+        m_drivetrain.GetRightVelocity(),
+        m_drivetrain.GetLeftPosition(),
+        m_drivetrain.GetRightPosition()
+    );
+    
+    // Process network packets and send telemetry
     m_Netman.Periodic();
     
     frc::SmartDashboard::PutBoolean("Network/Connected", m_Netman.IsConnected());

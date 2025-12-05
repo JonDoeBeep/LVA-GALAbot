@@ -22,6 +22,12 @@ public:
 
     void Periodic();
 
+    // Telemetry getters for BCNP transmission
+    float GetLeftVelocity() const { return static_cast<float>(m_leftEncoder.GetVelocity()); }
+    float GetRightVelocity() const { return static_cast<float>(m_rightEncoder.GetVelocity()); }
+    float GetLeftPosition() const { return static_cast<float>(m_leftEncoder.GetPosition()); }
+    float GetRightPosition() const { return static_cast<float>(m_rightEncoder.GetPosition()); }
+
 private:
     rev::spark::SparkMax m_leftLeader;
     rev::spark::SparkMax m_leftFollower;

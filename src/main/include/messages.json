@@ -1,6 +1,6 @@
 {
     "$schema": "../../../libraries/BCNP/schema/bcnp_schema.json",
-    "version": "3.1",
+    "version": "3.2",
     "namespace": "bcnp",
     "description": "Robot-specific BCNP messages",
     "messages": [
@@ -30,7 +30,47 @@
             "description": "Command duration in milliseconds"
           }
         ]
+      },
+      {
+        "id": 2,
+        "name": "DrivetrainTelemetry",
+        "description": "Drivetrain state telemetry sent from robot to host",
+        "fields": [
+          {
+            "name": "leftVelocity",
+            "type": "float32",
+            "scale": 10000,
+            "unit": "m/s",
+            "description": "Left side actual velocity"
+          },
+          {
+            "name": "rightVelocity",
+            "type": "float32",
+            "scale": 10000,
+            "unit": "m/s",
+            "description": "Right side actual velocity"
+          },
+          {
+            "name": "leftPosition",
+            "type": "float32",
+            "scale": 1000,
+            "unit": "m",
+            "description": "Left side encoder position"
+          },
+          {
+            "name": "rightPosition",
+            "type": "float32",
+            "scale": 1000,
+            "unit": "m",
+            "description": "Right side encoder position"
+          },
+          {
+            "name": "timestampMs",
+            "type": "uint32",
+            "unit": "ms",
+            "description": "FPGA timestamp in milliseconds"
+          }
+        ]
       }
     ]
   }
-  

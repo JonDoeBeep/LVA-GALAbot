@@ -11,7 +11,7 @@ static bcnp::MessageQueueConfig MakeQueueConfig() {
     // Configure queue timeouts
     config.connectionTimeout = std::chrono::milliseconds(200);
     config.maxCommandLag = std::chrono::milliseconds(5000); // Allow 5s lag for batched commands
-    config.capacity = bcnp::kMaxMessagesPerPacket; // Allow full packet of commands
+    config.capacity = 256; // Fixed capacity for real-time safety (v3.2 static vector compatible)
     return config;
 }
 
@@ -22,9 +22,17 @@ static bcnp::DispatcherConfig MakeDispatcherConfig() {
     return config;
 }
 
+static bcnp::TelemetryAccumulatorConfig MakeTelemetryConfig() {
+    bcnp::TelemetryAccumulatorConfig config;
+    config.flushIntervalTicks = 2;  // Send every 2 ticks (25Hz at 50Hz loop)
+    config.maxBufferedMessages = 32;
+    return config;
+}
+
 Netman::Netman() 
     : m_driveQueue(MakeQueueConfig()),
-      m_dispatcher(MakeDispatcherConfig())
+      m_dispatcher(MakeDispatcherConfig()),
+      m_telemetryAccumulator(MakeTelemetryConfig())
 {
     // Register DriveCmd handler to push commands into queue
     m_dispatcher.RegisterHandler<bcnp::DriveCmd>([this](const bcnp::PacketView& pkt) {
@@ -87,6 +95,16 @@ void Netman::Periodic() {
         frc::SmartDashboard::PutNumber("Network/CmdVx", 0.0);
         frc::SmartDashboard::PutNumber("Network/CmdW", 0.0);
     }
+
+    // Flush telemetry to host if connected and interval elapsed
+    if (IsConnected()) {
+        m_telemetryAccumulator.MaybeFlush(*m_tcpAdapter);
+    }
+    
+    // Publish telemetry stats
+    auto telemMetrics = m_telemetryAccumulator.GetMetrics();
+    frc::SmartDashboard::PutNumber("Network/TelemetrySent", static_cast<double>(telemMetrics.messagesSent));
+    frc::SmartDashboard::PutNumber("Network/TelemetryPackets", static_cast<double>(telemMetrics.packetsSent));
 }
 
 std::optional<Netman::Command> Netman::GetCommand() {
@@ -110,4 +128,15 @@ bool Netman::IsConnected() {
 
 void Netman::ClearQueue() {
     m_driveQueue.Clear();
+}
+
+void Netman::RecordTelemetry(float leftVel, float rightVel, float leftPos, float rightPos) {
+    bcnp::DrivetrainTelemetry telem{
+        .leftVelocity = leftVel,
+        .rightVelocity = rightVel,
+        .leftPosition = leftPos,
+        .rightPosition = rightPos,
+        .timestampMs = static_cast<uint32_t>(frc::Timer::GetFPGATimestamp().value() * 1000.0)
+    };
+    m_telemetryAccumulator.Record(telem);
 }
