@@ -11,7 +11,7 @@ static bcnp::MessageQueueConfig MakeQueueConfig() {
     // Configure queue timeouts
     config.connectionTimeout = std::chrono::milliseconds(200);
     config.maxCommandLag = std::chrono::milliseconds(5000); // Allow 5s lag for batched commands
-    config.capacity = 256; // Fixed capacity for real-time safety (v3.2 static vector compatible)
+    config.capacity = 1024; // Fixed capacity for real-time safety (v3.2 static vector compatible)
     return config;
 }
 
